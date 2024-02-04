@@ -10,7 +10,7 @@ class GeoData(models.Model):
     diameter = models.IntegerField(null=True)
     
     def __str__(self):
-        return f"{self.name}"
+        return f"{self.name} m"
 
 class GeoJSONFile(models.Model):
     file = models.FileField(upload_to='geojson_files/')
