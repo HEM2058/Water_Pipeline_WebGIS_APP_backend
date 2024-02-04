@@ -1,3 +1,8 @@
-from django.shortcuts import render
+# views.py
+from rest_framework import generics
+from .models import GeoData
+from .serializers import GeoDataSerializer
 
-# Create your views here.
+class GeoDataListAPIView(generics.ListAPIView):
+    queryset = GeoData.objects.all()
+    serializer_class = GeoDataSerializer
