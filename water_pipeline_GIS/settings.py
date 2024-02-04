@@ -37,6 +37,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'django.contrib.gis',
+    'GIS'
+
 ]
 
 MIDDLEWARE = [
@@ -73,13 +77,23 @@ WSGI_APPLICATION = 'water_pipeline_GIS.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
+DATABASES = {
+        'default': {
+            'ENGINE': 'django.contrib.gis.db.backends.postgis',
+            'NAME': 'water_pipeline',  # Replace with your database name
+            'USER': 'mappers',  # Replace with your database user
+            'PASSWORD': 'mappers123',  # Replace with your database password
+            'HOST': '127.0.0.1',  # Replace with your database host
+            'PORT': '5432',  # Use the default PostgreSQL port (5432)
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
