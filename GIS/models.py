@@ -5,7 +5,12 @@ import json
 from django.contrib.gis.geos import GEOSGeometry
 
 class GeoData(models.Model):
-    geometry_collection = models.GeometryCollectionField()
+    geometry = models.GeometryField(null=True)
+    name = models.CharField(max_length=255, null=True)
+    diameter = models.IntegerField(null=True)
+    
+    def __str__(self):
+        return f"{self.name}"
 
 class GeoJSONFile(models.Model):
     file = models.FileField(upload_to='geojson_files/')
@@ -23,32 +28,26 @@ def extract_geojson_features(sender, instance, **kwargs):
             data = json.loads(geojson_content)
             features = data.get('features', [])
 
-            geometry_collection = {
-                "type": "GeometryCollection",
-                "geometries": []
-            }
-
             for feature in features:
                 geometry = feature.get('geometry', {})
                 geometry_type = geometry.get('type')
                 coordinates = geometry.get('coordinates', [])
 
-                print(f"Extracted geometry type: {geometry_type}, coordinates: {coordinates}")
+                # Extract attribute information
+                properties = feature.get('properties', {})
+                name = properties.get('name')
+                diameter = properties.get('diameter')
 
-                # Append the geometry to the collection
-                geometry_collection['geometries'].append({
-                    "type": geometry_type,
-                    "coordinates": coordinates
-                })
+                print(f"Extracted geometry type: {geometry_type}, coordinates: {coordinates}, name: {name}, diameter: {diameter}")
 
-            # Convert the collection to a GeoJSON string
-            geojson_string = json.dumps(geometry_collection)
-
-            print(f"GeoJSON String: {geojson_string}")
-
-            # Create a GEOSGeometry object from the GeoJSON string
-            geo_data = GeoData.objects.create(geometry_collection=GEOSGeometry(geojson_string))
-            print(f"Saved GeoData object with ID: {geo_data.id}")
-
-
-
+                # Create a GeoData object for each feature
+                geo_data = GeoData.objects.create(
+                    geometry=GEOSGeometry(json.dumps({
+                        "type": geometry_type,
+                        "coordinates": coordinates
+                    })),
+                    name=name,
+                    diameter=diameter
+                )
+                
+                print(f"Saved GeoData object with ID: {geo_data.id}")
