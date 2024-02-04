@@ -39,4 +39,4 @@ class GeoJSONAPIView(APIView):
             "features": features,
         }
 
-        return Response(feature_collection)zzzzzzzzzzzzzzzz
+        return Response(feature_collection)
