@@ -40,3 +40,29 @@ class GeoJSONAPIView(APIView):
         }
 
         return Response(feature_collection)
+
+class CentroidPolygonView(APIView):
+    def get(self, request, *args, **kwargs):
+        selected_name = request.GET.get('selectedName', None)
+
+        if selected_name:
+            try:
+                geo_data = GeoData.objects.get(name=selected_name)
+                geometry = geo_data.geometry
+                if geometry.geom_type == 'Polygon':
+                    centroid = geometry.centroid
+                    print(f'Centroid Coordinates: {centroid}')
+                    # Now, you can process further or send the response if needed.
+                    return Response({'centroid': str(centroid)})
+                else:
+                    print('Selected feature is not a Polygon')
+                    # Handle the case where the feature is not a Polygon
+                    return Response({'error': 'Selected feature is not a Polygon'}, status=400)
+            except GeoData.DoesNotExist:
+                print('Feature not found')
+                # Handle the case where the feature is not found
+                return Response({'error': 'Feature not found'}, status=404)
+        else:
+            print('Please provide a valid selectedName parameter')
+            # Handle the case where selectedName parameter is not provided or invalid
+            return Response({'error': 'Please provide a valid selectedName parameter'}, status=400)
