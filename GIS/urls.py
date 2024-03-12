@@ -1,10 +1,9 @@
-# urls.py
 from django.urls import path
-from .views import GeoDataListAPIView, GeoJSONAPIView, CentroidPolygonView
+from .views import PipelineGeoJSONAPIView, StorageUnitGeoJSONAPIView, GateValveGeoJSONAPIView, TubeWellGeoJSONAPIView
 
 urlpatterns = [
-    path('geo-data/', GeoDataListAPIView.as_view(), name='geo-data-list'),
-    path('geo-json/', GeoJSONAPIView.as_view(), name='geo-json'),
-    path('centroid/', CentroidPolygonView.as_view(), name='centroid_polygon'),
-
+    path('pipeline-geojson/', PipelineGeoJSONAPIView.as_view(), name='pipeline_geojson'),
+    path('storage-unit-geojson/', StorageUnitGeoJSONAPIView.as_view(), name='storage_unit_geojson'),
+    path('gate-valve-geojson/', GateValveGeoJSONAPIView.as_view(), name='gate_valve_geojson'),
+    path('tube-well-geojson/', TubeWellGeoJSONAPIView.as_view(), name='tube_well_geojson'),
 ]

@@ -89,7 +89,7 @@ WSGI_APPLICATION = 'water_pipeline_GIS.wsgi.application'
 DATABASES = {
         'default': {
             'ENGINE': 'django.contrib.gis.db.backends.postgis',
-            'NAME': 'water_pipeline',  # Replace with your database name
+            'NAME': 'pipeline',  # Replace with your database name
             'USER': 'mappers',  # Replace with your database user
             'PASSWORD': 'mappers123',  # Replace with your database password
             'HOST': '127.0.0.1',  # Replace with your database host
