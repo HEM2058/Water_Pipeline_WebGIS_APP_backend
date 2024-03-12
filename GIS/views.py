@@ -1,7 +1,7 @@
 # views.py
 from rest_framework import generics
 from .models import Pipeline ,StorageUnit, GateValve, TubeWell
-from .serializers import PipelineSerializer, StorageUnitSerializer, GateValveSerialize, TubeSerializer
+from .serializers import PipelineSerializer, StorageUnitSerializer, GateValveSerializer, TubeSerializer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.gis.geos import GEOSGeometry
@@ -28,7 +28,6 @@ class PipelineGeoJSONAPIView(APIView):
                 "geometry": geometry,
                 "properties": {
                     "id": pipeline.id,
-                    "name": pipeline.name,
                     "diameter_m": pipeline.Diameter_m,  # Change field name accordingly
                     "material": pipeline.Material,
                     "length_m": pipeline.Length_m,
