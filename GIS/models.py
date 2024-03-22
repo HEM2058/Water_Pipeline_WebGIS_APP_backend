@@ -3,6 +3,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 import json
 from django.contrib.gis.geos import GEOSGeometry
+from django.utils import timezone
 
 class Pipeline(models.Model):
     geometry = models.GeometryField(null=True)
@@ -204,3 +205,26 @@ def extract_tubewell_data(sender, instance, **kwargs):
                 )
                 
                 print(f"Saved TubeWell object with ID: {tubewell.id}")
+
+
+class Task(models.Model):
+    TASK_STATUS_CHOICES = [
+        ('assigned', 'Assigned'),
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    task_name = models.CharField(max_length=100)
+    description = models.TextField()
+    status = models.CharField(max_length=20, choices=TASK_STATUS_CHOICES, default='assigned')
+    assigned_to = models.CharField(max_length=255, blank=True)
+    start_date = models.DateTimeField(default=timezone.now)
+    deadline = models.DateTimeField()
+    geometry = models.GeometryField(null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.task_name

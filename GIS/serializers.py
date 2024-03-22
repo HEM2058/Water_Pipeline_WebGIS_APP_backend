@@ -1,6 +1,6 @@
 # serializers.py
 from rest_framework import serializers
-from .models import Pipeline ,StorageUnit, GateValve, TubeWell
+from .models import Pipeline ,StorageUnit, GateValve, TubeWell, Task
 
 class PipelineSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,4 +17,8 @@ class GateValveSerializer(serializers.ModelSerializer):
 class TubeSerializer(serializers.ModelSerializer):
     class Meta:
         model = TubeWell
+        fields = '__all__'
+class TaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Task
         fields = '__all__'

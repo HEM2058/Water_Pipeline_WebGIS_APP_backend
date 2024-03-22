@@ -1,13 +1,13 @@
 # views.py
 from rest_framework import generics
-from .models import Pipeline ,StorageUnit, GateValve, TubeWell
-from .serializers import PipelineSerializer, StorageUnitSerializer, GateValveSerializer, TubeSerializer
+from .models import Pipeline ,StorageUnit, GateValve, TubeWell, Task
+from .serializers import PipelineSerializer, StorageUnitSerializer, GateValveSerializer, TubeSerializer, TaskSerializer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.serializers import serialize
 import json
-
+from .tasks import update_task_status  # Import the Celery task
 # class PipelineListAPIView(generics.ListAPIView):
 #     queryset = Pipeline.objects.all()
 #     serializer_class = GeoDataSerializer
@@ -139,6 +139,15 @@ class TubeWellGeoJSONAPIView(APIView):
         }
 
         return Response(feature_collection)
+
+class TaskView(generics.ListAPIView):
+    serializer_class = TaskSerializer
+    queryset = Task.objects.all()
+
+    def list(self, request, *args, **kwargs):
+        # Call the Celery task to update task statuses
+        update_task_status()
+        return super().list(request, *args, **kwargs)
 
 # class CentroidPolygonView(APIView):
 #     def get(self, request, *args, **kwargs):
