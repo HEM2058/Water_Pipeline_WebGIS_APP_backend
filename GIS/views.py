@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.serializers import serialize
 import json
+from sentinelhub import SentinelHubRequest, DataCollection, MimeType, CRS, SHConfig, BBox
 from .tasks import update_task_status  # Import the Celery task
 # class PipelineListAPIView(generics.ListAPIView):
 #     queryset = Pipeline.objects.all()
@@ -174,3 +175,80 @@ class TaskView(generics.ListAPIView):
 #             print('Please provide a valid selectedName parameter')
 #             # Handle the case where selectedName parameter is not provided or invalid
 #             return Response({'error': 'Please provide a valid selectedName parameter'}, status=400)
+
+
+#Fetching the route elevation from sentinel api
+
+class ElevationAPIView(APIView):
+    def post(self, request):
+        # Credentials
+        config = SHConfig()
+        config.sh_client_id = '80cb4233-97cd-4ae8-aa82-787cc091082f'
+        config.sh_client_secret = 'Oh48OTexSh32T4InF8fBje5BGvnAYH6i'
+
+        # Get coordinates from request data
+        coordinates = request.data.get('coordinates', [])
+        print("====================================================================")
+        print(coordinates)
+        elevation_data = []
+
+        # Function to get elevation value for a single location
+        def get_elevation(latitude, longitude):
+            # Define bounding box around the point of interest
+            bbox = BBox(bbox=[
+                longitude - 0.0001,  # left
+                latitude - 0.0001,   # bottom
+                longitude + 0.0001,  # right
+                latitude + 0.0001    # top
+            ], crs=CRS.WGS84)
+
+            # Create SentinelHub request for elevation data
+            request_elevation = SentinelHubRequest(
+                evalscript="""
+                    //VERSION=3
+                    function setup() {
+                        return {
+                            input: [{
+                                bands: ["DEM"]
+                            }],
+                            output: {
+                                bands: 1,
+                                sampleType: "FLOAT32"
+                            }
+                        };
+                    }
+
+                    function evaluatePixel(sample) {
+                        return [sample.DEM];
+                    }
+                """,
+                input_data=[
+                    SentinelHubRequest.input_data(
+                        data_collection=DataCollection.DEM,
+                    ),
+                ],
+                responses=[
+                    SentinelHubRequest.output_response('default', MimeType.TIFF),
+                ],
+                bbox=bbox,
+                size=[1, 1],  # Set size to 1x1 pixel to get only one pixel value
+                config=config,
+            )
+
+            # Get elevation data from the request
+            elevation_response = request_elevation.get_data()
+
+            # Extract elevation value
+            elevation_value = elevation_response[0][0][0]
+            print(elevation_value)
+
+            return elevation_value
+
+        # Fetch elevation values for all coordinates
+        for longitude, latitude in coordinates:
+            print(latitude)
+            print(longitude)
+            elevation = get_elevation(latitude, longitude)
+            elevation_data.append({'latitude': latitude, 'longitude': longitude, 'elevation': elevation})
+
+        return Response({'elevation_data': elevation_data})
