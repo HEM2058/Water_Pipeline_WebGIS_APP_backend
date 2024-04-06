@@ -1,7 +1,7 @@
 # views.py
 from rest_framework import generics
-from .models import Pipeline ,StorageUnit, GateValve, TubeWell, Task
-from .serializers import PipelineSerializer, StorageUnitSerializer, GateValveSerializer, TubeSerializer, TaskSerializer
+from .models import Pipeline ,StorageUnit, GateValve, TubeWell, Task, Location
+from .serializers import PipelineSerializer, StorageUnitSerializer, GateValveSerializer, TubeSerializer, TaskSerializer, LocationSerializer,TaskSerializerCount
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.gis.geos import GEOSGeometry
@@ -9,6 +9,7 @@ from django.core.serializers import serialize
 import json
 from sentinelhub import SentinelHubRequest, DataCollection, MimeType, CRS, SHConfig, BBox
 from .tasks import update_task_status  # Import the Celery task
+from django.db.models import Count
 # class PipelineListAPIView(generics.ListAPIView):
 #     queryset = Pipeline.objects.all()
 #     serializer_class = GeoDataSerializer
@@ -252,3 +253,29 @@ class ElevationAPIView(APIView):
             elevation_data.append({'latitude': latitude, 'longitude': longitude, 'elevation': elevation})
 
         return Response({'elevation_data': elevation_data})
+
+#Issues count fetching api
+
+class LocationIssueCountAPI(APIView):
+    def get(self, request):
+        # Get the total count of all issues
+        total_issues = Location.objects.count()
+        
+        # Get the count of objects for each issue type
+        issue_counts = Location.objects.values('issue_type').annotate(count=Count('issue_type'))
+
+        # Serialize the data
+        serializer = LocationSerializer({
+            'total_issues': total_issues,
+            'issue_counts': issue_counts
+        })
+
+        return Response(serializer.data)
+
+#Task count feching api
+class TaskListAPI(APIView):
+    def get(self, request):
+        tasks = Task.objects.all()
+        serializer = TaskSerializerCount(tasks, context={'request': request})
+        return Response(serializer.data)
+

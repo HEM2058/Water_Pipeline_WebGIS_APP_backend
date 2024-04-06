@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Pipeline, PipelineFile, StorageUnit, StorageUnitFile, GateValve,  GateValveFile, TubeWell, TubeWellFile, Task
+from .models import Pipeline, PipelineFile, StorageUnit, StorageUnitFile, GateValve,  GateValveFile, TubeWell, TubeWellFile, Task, Location
 from django.contrib.gis.admin import OSMGeoAdmin
 # # Register your models here.
 
@@ -16,3 +16,4 @@ admin.site.register(TubeWell, OSMGeoAdmin)
 admin.site.register(TubeWellFile)
 
 admin.site.register(Task,  OSMGeoAdmin)
+admin.site.register(Location)

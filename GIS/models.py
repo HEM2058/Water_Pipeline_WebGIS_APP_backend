@@ -229,3 +229,24 @@ class Task(models.Model):
     def __str__(self):
         return self.task_name
 
+
+class Location(models.Model):
+    # Latitude and Longitude coordinates
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+
+    # Choices for the issues
+    ISSUE_CHOICES = [
+        ('LEAKAGE', 'Leakage Detected Point'),
+        ('WATER_ISSUE', 'Water Supply Issue'),
+        ('PIPE_INSTALLATION', 'Requested New Location for Pipe Installation'),
+    ]
+
+    # Details about the issue
+    issue_type = models.CharField(max_length=20, choices=ISSUE_CHOICES, null=True, blank=True)
+    client_name = models.CharField(max_length=100)
+    client_phone_number = models.CharField(max_length=15)
+    description = models.TextField()
+
+    def __str__(self):
+        return f"Location - Lat: {self.latitude}, Lng: {self.longitude}"
