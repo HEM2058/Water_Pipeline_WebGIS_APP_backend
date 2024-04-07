@@ -59,3 +59,8 @@ class TaskSerializerCount(serializers.ModelSerializer):
         # Get the count of tasks for each status
         task_counts = Task.objects.values('status').annotate(count=Count('status'))
         return task_counts
+
+class IssueSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Location
+        fields = '__all__'

@@ -1,7 +1,7 @@
 # views.py
 from rest_framework import generics
 from .models import Pipeline ,StorageUnit, GateValve, TubeWell, Task, Location
-from .serializers import PipelineSerializer, StorageUnitSerializer, GateValveSerializer, TubeSerializer, TaskSerializer, LocationSerializer,TaskSerializerCount
+from .serializers import PipelineSerializer, StorageUnitSerializer, GateValveSerializer, TubeSerializer, TaskSerializer, LocationSerializer,TaskSerializerCount,IssueSerializer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.gis.geos import GEOSGeometry
@@ -10,6 +10,9 @@ import json
 from sentinelhub import SentinelHubRequest, DataCollection, MimeType, CRS, SHConfig, BBox
 from .tasks import update_task_status  # Import the Celery task
 from django.db.models import Count
+from rest_framework.decorators import api_view
+from rest_framework import status
+from django.contrib.auth.decorators import login_required
 # class PipelineListAPIView(generics.ListAPIView):
 #     queryset = Pipeline.objects.all()
 #     serializer_class = GeoDataSerializer
@@ -278,4 +281,9 @@ class TaskListAPI(APIView):
         tasks = Task.objects.all()
         serializer = TaskSerializerCount(tasks, context={'request': request})
         return Response(serializer.data)
+#Fetchin all the issues
+
+class IssuesListApi(generics.ListAPIView):
+    serializer_class = IssueSerializer
+    queryset = Location.objects.all()
 
