@@ -64,3 +64,8 @@ class IssueSerializer(serializers.ModelSerializer):
     class Meta:
         model = Location
         fields = '__all__'
+
+class IssueGeoprocessingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Location
+        fields ='__all__'

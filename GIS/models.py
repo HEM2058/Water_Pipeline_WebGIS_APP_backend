@@ -4,6 +4,8 @@ from django.dispatch import receiver
 import json
 from django.contrib.gis.geos import GEOSGeometry
 from django.utils import timezone
+from django.contrib.gis.geos import Point
+from django.contrib.gis.db.models.functions import Distance
 
 class Pipeline(models.Model):
     geometry = models.GeometryField(null=True)
@@ -231,22 +233,38 @@ class Task(models.Model):
 
 
 class Location(models.Model):
-    # Latitude and Longitude coordinates
-    latitude = models.FloatField()
-    longitude = models.FloatField()
-
-    # Choices for the issues
-    ISSUE_CHOICES = [
+    geometry = models.GeometryField(null=True)
+    issue_type = models.CharField(max_length=20, choices=[
         ('LEAKAGE', 'Leakage Detected Point'),
         ('WATER_ISSUE', 'Water Supply Issue'),
         ('PIPE_INSTALLATION', 'Requested New Location for Pipe Installation'),
-    ]
-
-    # Details about the issue
-    issue_type = models.CharField(max_length=20, choices=ISSUE_CHOICES, null=True, blank=True)
+    ], null=True, blank=True)
     client_name = models.CharField(max_length=100)
     client_phone_number = models.CharField(max_length=15)
     description = models.TextField()
 
     def __str__(self):
-        return f"Location - Lat: {self.latitude}, Lng: {self.longitude}"
+        return f"Location - Geometry: {self.geometry}"
+
+    def is_pipe_leakage(self):
+        return self.issue_type == 'LEAKAGE'
+
+    def find_nearest_pipeline(self):
+        if self.is_pipe_leakage():
+            nearest_pipeline = Pipeline.objects.annotate(
+                distance=Distance('geometry', self.geometry)
+            ).order_by('distance').first()
+            if nearest_pipeline:
+                nearest_pipeline.Leakage = True
+                nearest_pipeline.save()
+                return nearest_pipeline
+        return None
+
+    def save(self, *args, **kwargs):
+        if self.is_pipe_leakage():
+            nearest_pipeline = self.find_nearest_pipeline()
+            if nearest_pipeline:
+                print(nearest_pipeline)
+                nearest_pipeline.Leakage = True
+                nearest_pipeline.save()
+        super().save(*args, **kwargs)

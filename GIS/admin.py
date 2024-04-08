@@ -16,4 +16,4 @@ admin.site.register(TubeWell, OSMGeoAdmin)
 admin.site.register(TubeWellFile)
 
 admin.site.register(Task,  OSMGeoAdmin)
-admin.site.register(Location)
+admin.site.register(Location, OSMGeoAdmin)

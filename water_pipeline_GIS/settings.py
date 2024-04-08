@@ -40,7 +40,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'django.contrib.gis',
     'GIS',
-    'corsheaders'
+    'corsheaders',
+    'djoser',
+    'rest_framework.authtoken',
 
 ]
 
@@ -143,3 +145,16 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000' # Your frontend domain
     # Add other allowed origins as needed
 ]
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.TokenAuthentication',  # Use TokenAuthentication for token-based authentication
+    ),
+}
+
+DJOSER = {
+    'USER_ID_FIELD': 'username',
+    'LOGIN_FIELD': 'email',
+    'USER_CREATE_PASSWORD_RETYPE': True,
+}

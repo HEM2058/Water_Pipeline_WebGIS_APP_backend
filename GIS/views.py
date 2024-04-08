@@ -1,7 +1,7 @@
 # views.py
 from rest_framework import generics
 from .models import Pipeline ,StorageUnit, GateValve, TubeWell, Task, Location
-from .serializers import PipelineSerializer, StorageUnitSerializer, GateValveSerializer, TubeSerializer, TaskSerializer, LocationSerializer,TaskSerializerCount,IssueSerializer
+from .serializers import PipelineSerializer, StorageUnitSerializer, GateValveSerializer, TubeSerializer, TaskSerializer, LocationSerializer,TaskSerializerCount,IssueSerializer,IssueGeoprocessingSerializer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.gis.geos import GEOSGeometry
@@ -287,3 +287,14 @@ class IssuesListApi(generics.ListAPIView):
     serializer_class = IssueSerializer
     queryset = Location.objects.all()
 
+class CreateLocationAPIView(generics.CreateAPIView):
+    queryset = Location.objects.all()
+    serializer_class = IssueGeoprocessingSerializer
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+
+        # Perform proximity analysis and mark the nearest pipeline as leakage
+        instance.find_nearest_pipeline()
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
