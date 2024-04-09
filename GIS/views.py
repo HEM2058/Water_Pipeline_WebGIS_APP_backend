@@ -292,9 +292,21 @@ class CreateLocationAPIView(generics.CreateAPIView):
     serializer_class = IssueGeoprocessingSerializer
 
     def perform_create(self, serializer):
+        # Extract geometry data from request
+        geometry_data = self.request.data.get('geometry', {})
+        print(geometry_data)
+        
+        # Construct a GEOSGeometry object
+        if geometry_data:
+            geometry = GEOSGeometry(json.dumps(geometry_data))
+            # Assign the constructed geometry to the serializer
+            serializer.validated_data['geometry'] = geometry
+
         instance = serializer.save()
+        print(instance)
 
         # Perform proximity analysis and mark the nearest pipeline as leakage
         instance.find_nearest_pipeline()
+        print("after find nearest")
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
