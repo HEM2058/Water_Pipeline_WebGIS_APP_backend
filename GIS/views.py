@@ -310,3 +310,7 @@ class CreateLocationAPIView(generics.CreateAPIView):
         print("after find nearest")
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+class IssueLocation(generics.ListAPIView):
+    queryset = Location.objects.all()
+    serializer_class = IssueGeoprocessingSerializer
