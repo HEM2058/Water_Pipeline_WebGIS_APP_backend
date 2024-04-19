@@ -14,6 +14,8 @@ from rest_framework.decorators import api_view
 from rest_framework import status
 from django.contrib.auth.decorators import login_required
 import random
+from django.contrib.gis.geos import Point
+import requests
 # class PipelineListAPIView(generics.ListAPIView):
 #     queryset = Pipeline.objects.all()
 #     serializer_class = GeoDataSerializer
@@ -317,6 +319,7 @@ class IssueLocation(generics.ListAPIView):
     serializer_class = IssueGeoprocessingSerializer
 
 
+
 class OptimumRouteFinder(APIView):
     ACCESS_TOKEN = "1b0d6442-4806-4a6c-90bb-5437128096eb"
     ROUTING_API_URL = "https://route-init.gallimap.com/api/v1/routing?mode=driving&srcLat={src_lat}&srcLng={src_lng}&dstLat={dst_lat}&dstLng={dst_lng}&accessToken={access_token}"
@@ -324,7 +327,9 @@ class OptimumRouteFinder(APIView):
     def post(self, request):
         # Receive destination coordinate point from the user
         destination = request.data.get('destination')
-        destination_point = Point(destination['longitude'], destination['latitude'], srid=4326)
+        # Split the destination string into latitude and longitude
+        latitude, longitude = map(float, destination.split(','))
+        destination_point = Point(longitude, latitude, srid=4326)
 
         # Define a buffer distance (in meters) to find nearby pipelines
         buffer_distance = 200  # Adjust according to your requirements
@@ -337,13 +342,14 @@ class OptimumRouteFinder(APIView):
         min_elevation_difference = float('inf')
 
         # Iterate through nearby pipelines
-        for pipeline in nearby_pipelines:
+        for index, pipeline in enumerate(nearby_pipelines):
             # Sample points along the pipeline
+            print(f"Pipeline Index: {index}")
             sampled_points = self.sample_points_on_pipeline(pipeline.geometry)
 
             # Make the routing API request for each sampled source coordinate and the given destination coordinate
             for source_coordinate in sampled_points:
-                response = self.make_routing_request(source_coordinate, (destination['longitude'], destination['latitude']))
+                response = self.make_routing_request(source_coordinate, (longitude, latitude))
 
                 # Extract route and distance from the response
                 route = response['route']
@@ -369,13 +375,22 @@ class OptimumRouteFinder(APIView):
         Sample points along the pipeline geometry.
         """
         sampled_points = []
-        num_points = min(num_points, pipeline_geometry.num_points)
-        for _ in range(num_points):
-            # Sample a random point index along the pipeline
-            random_index = random.randint(0, pipeline_geometry.num_points - 1)
-            # Extract the coordinates of the sampled point
-            sampled_point = pipeline_geometry[random_index]
-            sampled_points.append(sampled_point.coords)
+        num_points = min(num_points, len(pipeline_geometry))  # Get the number of line strings in the MULTILINESTRING
+        print("Number of line strings in the MULTILINESTRING:", num_points)
+        sampled_indices = random.sample(range(num_points), num_points)
+        print("Sampled indices:", sampled_indices)
+        print("Pipeline geometry:", pipeline_geometry)
+
+        for index in sampled_indices:
+            line_string = pipeline_geometry[index]
+            num_points_in_line = line_string.num_points
+            print(f"Number of points in line string {index + 1}: {num_points_in_line}")
+            sampled_point_index = random.randint(0, num_points_in_line - 1)
+            sampled_point = line_string[sampled_point_index]
+            print(f"Sampled point from line string {index + 1}: {sampled_point}")
+            sampled_points.append(sampled_point)
+            print(sampled_point)
+
         return sampled_points
 
     def make_routing_request(self, source, destination):
@@ -387,9 +402,11 @@ class OptimumRouteFinder(APIView):
             dst_lng=destination[0],
             access_token=self.ACCESS_TOKEN
         )
+        print(routing_api_url)
 
         # Send a GET request to the routing API URL
         response = requests.get(routing_api_url)
+        print(f"Response from the api {response}")
         return response.json()
 
     def calculate_elevation_difference(self, route):
