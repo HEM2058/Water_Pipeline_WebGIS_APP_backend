@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import PipelineGeoJSONAPIView, StorageUnitGeoJSONAPIView, GateValveGeoJSONAPIView, TubeWellGeoJSONAPIView, TaskView, ElevationAPIView,LocationIssueCountAPI,TaskListAPI,IssuesListApi,CreateLocationAPIView,IssueLocation
+from .views import PipelineGeoJSONAPIView, StorageUnitGeoJSONAPIView, GateValveGeoJSONAPIView, TubeWellGeoJSONAPIView, TaskView, ElevationAPIView,LocationIssueCountAPI,TaskListAPI,IssuesListApi,CreateLocationAPIView,IssueLocation,OptimumRouteFinder
 
 urlpatterns = [
     path('pipeline-geojson/', PipelineGeoJSONAPIView.as_view(), name='pipeline_geojson'),
@@ -12,7 +12,8 @@ urlpatterns = [
     path('tasks/count', TaskListAPI.as_view(), name='task-list'),
     path('issues/',IssuesListApi.as_view(), name='issues'),
     path('issues-location/', CreateLocationAPIView.as_view(), name='issues-location'),
-    path('issues-view/',IssueLocation.as_view(),name='issues-view')
+    path('issues-view/',IssueLocation.as_view(),name='issues-view'),
+    path('OptimumRouteFinder/',OptimumRouteFinder.as_view(),name='optimum-route')
 
  
 ]

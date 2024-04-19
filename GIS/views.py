@@ -13,6 +13,7 @@ from django.db.models import Count
 from rest_framework.decorators import api_view
 from rest_framework import status
 from django.contrib.auth.decorators import login_required
+import random
 # class PipelineListAPIView(generics.ListAPIView):
 #     queryset = Pipeline.objects.all()
 #     serializer_class = GeoDataSerializer
@@ -314,3 +315,159 @@ class CreateLocationAPIView(generics.CreateAPIView):
 class IssueLocation(generics.ListAPIView):
     queryset = Location.objects.all()
     serializer_class = IssueGeoprocessingSerializer
+
+
+class OptimumRouteFinder(APIView):
+    ACCESS_TOKEN = "1b0d6442-4806-4a6c-90bb-5437128096eb"
+    ROUTING_API_URL = "https://route-init.gallimap.com/api/v1/routing?mode=driving&srcLat={src_lat}&srcLng={src_lng}&dstLat={dst_lat}&dstLng={dst_lng}&accessToken={access_token}"
+
+    def post(self, request):
+        # Receive destination coordinate point from the user
+        destination = request.data.get('destination')
+        destination_point = Point(destination['longitude'], destination['latitude'], srid=4326)
+
+        # Define a buffer distance (in meters) to find nearby pipelines
+        buffer_distance = 200  # Adjust according to your requirements
+
+        # Use spatial query to find nearby pipelines within the buffer distance
+        nearby_pipelines = Pipeline.objects.filter(geometry__distance_lte=(destination_point, buffer_distance))
+
+        # Initialize variables to store the shortest feasible route and its elevation
+        shortest_feasible_route = None
+        min_elevation_difference = float('inf')
+
+        # Iterate through nearby pipelines
+        for pipeline in nearby_pipelines:
+            # Sample points along the pipeline
+            sampled_points = self.sample_points_on_pipeline(pipeline.geometry)
+
+            # Make the routing API request for each sampled source coordinate and the given destination coordinate
+            for source_coordinate in sampled_points:
+                response = self.make_routing_request(source_coordinate, (destination['longitude'], destination['latitude']))
+
+                # Extract route and distance from the response
+                route = response['route']
+                distance = response['distance']
+
+                # Check if the distance is shorter than the current shortest feasible route
+                if distance < min_elevation_difference:
+                    # Calculate elevation difference for the route
+                    elevation_difference = self.calculate_elevation_difference(route)
+
+                    # If the route is feasible (i.e., water flows from high to low elevation), update shortest_feasible_route
+                    if elevation_difference >= 0:
+                        shortest_feasible_route = route
+                        min_elevation_difference = distance
+
+        if shortest_feasible_route:
+            return Response({'optimum_route': shortest_feasible_route})
+        else:
+            return Response({'message': 'No feasible route found'})
+
+    def sample_points_on_pipeline(self, pipeline_geometry, num_points=3):
+        """
+        Sample points along the pipeline geometry.
+        """
+        sampled_points = []
+        num_points = min(num_points, pipeline_geometry.num_points)
+        for _ in range(num_points):
+            # Sample a random point index along the pipeline
+            random_index = random.randint(0, pipeline_geometry.num_points - 1)
+            # Extract the coordinates of the sampled point
+            sampled_point = pipeline_geometry[random_index]
+            sampled_points.append(sampled_point.coords)
+        return sampled_points
+
+    def make_routing_request(self, source, destination):
+        # Format the routing API URL with source, destination, and access token
+        routing_api_url = self.ROUTING_API_URL.format(
+            src_lat=source[1],  # Assuming source is (longitude, latitude)
+            src_lng=source[0],
+            dst_lat=destination[1],
+            dst_lng=destination[0],
+            access_token=self.ACCESS_TOKEN
+        )
+
+        # Send a GET request to the routing API URL
+        response = requests.get(routing_api_url)
+        return response.json()
+
+    def calculate_elevation_difference(self, route):
+        # Extract coordinates from the route
+        coordinates = [(step['longitude'], step['latitude']) for step in route]
+
+        # Request elevation data for the coordinates
+        elevation_data = self.request_elevation_data(coordinates)
+
+        # Calculate elevation difference along the route
+        elevation_difference = 0
+        for i in range(len(elevation_data) - 1):
+            elevation_difference += elevation_data[i + 1]['elevation'] - elevation_data[i]['elevation']
+
+        return elevation_difference
+
+    def request_elevation_data(self, coordinates):
+        # Credentials
+        config = SHConfig()
+        config.sh_client_id = '80cb4233-97cd-4ae8-aa82-787cc091082f'
+        config.sh_client_secret = 'Oh48OTexSh32T4InF8fBje5BGvnAYH6i'
+
+        elevation_data = []
+
+        # Function to get elevation value for a single location
+        def get_elevation(latitude, longitude):
+            # Define bounding box around the point of interest
+            bbox = BBox(bbox=[
+                longitude - 0.0001,  # left
+                latitude - 0.0001,   # bottom
+                longitude + 0.0001,  # right
+                latitude + 0.0001    # top
+            ], crs=CRS.WGS84)
+
+            # Create SentinelHub request for elevation data
+            request_elevation = SentinelHubRequest(
+                evalscript="""
+                    //VERSION=3
+                    function setup() {
+                        return {
+                            input: [{
+                                bands: ["DEM"]
+                            }],
+                            output: {
+                                bands: 1,
+                                sampleType: "FLOAT32"
+                            }
+                        };
+                    }
+
+                    function evaluatePixel(sample) {
+                        return [sample.DEM];
+                    }
+                """,
+                input_data=[
+                    SentinelHubRequest.input_data(
+                        data_collection=DataCollection.DEM,
+                    ),
+                ],
+                responses=[
+                    SentinelHubRequest.output_response('default', MimeType.TIFF),
+                ],
+                bbox=bbox,
+                size=[1, 1],  # Set size to 1x1 pixel to get only one pixel value
+                config=config,
+            )
+
+            # Get elevation data from the request
+            elevation_response = request_elevation.get_data()
+
+            # Extract elevation value
+            elevation_value = elevation_response[0][0][0]
+
+            return elevation_value
+
+        # Fetch elevation values for all coordinates
+        for longitude, latitude in coordinates:
+            elevation = get_elevation(latitude, longitude)
+            elevation_data.append({'latitude': latitude, 'longitude': longitude, 'elevation': elevation})
+
+        return elevation_data
