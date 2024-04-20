@@ -340,33 +340,42 @@ class OptimumRouteFinder(APIView):
         # Initialize variables to store the shortest feasible route and its elevation
         shortest_feasible_route = None
         min_elevation_difference = float('inf')
+        shortest_route_elevation_data = None
 
         # Iterate through nearby pipelines
-        for index, pipeline in enumerate(nearby_pipelines):
+        for pipeline in nearby_pipelines:
             # Sample points along the pipeline
-            print(f"Pipeline Index: {index}")
             sampled_points = self.sample_points_on_pipeline(pipeline.geometry)
 
             # Make the routing API request for each sampled source coordinate and the given destination coordinate
             for source_coordinate in sampled_points:
                 response = self.make_routing_request(source_coordinate, (longitude, latitude))
 
-                # Extract route and distance from the response
-                route = response['route']
-                distance = response['distance']
+                # Check if the response is valid
+                if response is not None and response.status_code == 200:
+                    route_data = response.json()
+                    routes = route_data['data']['data']
 
-                # Check if the distance is shorter than the current shortest feasible route
-                if distance < min_elevation_difference:
-                    # Calculate elevation difference for the route
-                    elevation_difference = self.calculate_elevation_difference(route)
+                    # Extract the first route from the response data
+                    if routes:
+                        first_route_info = routes[0]
+                        route_latlngs = first_route_info['latlngs']
 
-                    # If the route is feasible (i.e., water flows from high to low elevation), update shortest_feasible_route
-                    if elevation_difference >= 0:
-                        shortest_feasible_route = route
-                        min_elevation_difference = distance
+                        # Fetch elevation data for the coordinates along the route
+                        elevation_data = self.request_elevation_data(route_latlngs)
+
+                        # Calculate elevation difference for the route
+                        elevation_difference = self.calculate_elevation_difference(elevation_data)
+
+                        # If the route is feasible (i.e., water flows from high to low elevation) and shorter than the current shortest feasible route
+                        if elevation_difference >= 0:
+                            if first_route_info['distance'] < min_elevation_difference:
+                                shortest_feasible_route = route_latlngs
+                                min_elevation_difference = first_route_info['distance']
+                                shortest_route_elevation_data = elevation_data
 
         if shortest_feasible_route:
-            return Response({'optimum_route': shortest_feasible_route})
+            return Response({'optimum_route': shortest_feasible_route, 'elevation_data': shortest_route_elevation_data})
         else:
             return Response({'message': 'No feasible route found'})
 
@@ -376,54 +385,30 @@ class OptimumRouteFinder(APIView):
         """
         sampled_points = []
         num_points = min(num_points, len(pipeline_geometry))  # Get the number of line strings in the MULTILINESTRING
-        print("Number of line strings in the MULTILINESTRING:", num_points)
-        sampled_indices = random.sample(range(num_points), num_points)
-        print("Sampled indices:", sampled_indices)
-        print("Pipeline geometry:", pipeline_geometry)
 
-        for index in sampled_indices:
-            line_string = pipeline_geometry[index]
+        for line_string in pipeline_geometry:
             num_points_in_line = line_string.num_points
-            print(f"Number of points in line string {index + 1}: {num_points_in_line}")
             sampled_point_index = random.randint(0, num_points_in_line - 1)
-            sampled_point = line_string[sampled_point_index]
-            print(f"Sampled point from line string {index + 1}: {sampled_point}")
+            sampled_point = line_string.coords[sampled_point_index]
             sampled_points.append(sampled_point)
-            print(sampled_point)
 
         return sampled_points
 
     def make_routing_request(self, source, destination):
         # Format the routing API URL with source, destination, and access token
         routing_api_url = self.ROUTING_API_URL.format(
-            src_lat=source[1],  # Assuming source is (longitude, latitude)
+            src_lat=source[1],  # Assuming source is (latitude, longitude)
             src_lng=source[0],
             dst_lat=destination[1],
             dst_lng=destination[0],
             access_token=self.ACCESS_TOKEN
         )
-        print(routing_api_url)
 
         # Send a GET request to the routing API URL
         response = requests.get(routing_api_url)
-        print(f"Response from the api {response}")
-        return response.json()
+        return response
 
-    def calculate_elevation_difference(self, route):
-        # Extract coordinates from the route
-        coordinates = [(step['longitude'], step['latitude']) for step in route]
-
-        # Request elevation data for the coordinates
-        elevation_data = self.request_elevation_data(coordinates)
-
-        # Calculate elevation difference along the route
-        elevation_difference = 0
-        for i in range(len(elevation_data) - 1):
-            elevation_difference += elevation_data[i + 1]['elevation'] - elevation_data[i]['elevation']
-
-        return elevation_difference
-
-    def request_elevation_data(self, coordinates):
+    def request_elevation_data(self, route_latlngs):
         # Credentials
         config = SHConfig()
         config.sh_client_id = '80cb4233-97cd-4ae8-aa82-787cc091082f'
@@ -433,14 +418,6 @@ class OptimumRouteFinder(APIView):
 
         # Function to get elevation value for a single location
         def get_elevation(latitude, longitude):
-            # Define bounding box around the point of interest
-            bbox = BBox(bbox=[
-                longitude - 0.0001,  # left
-                latitude - 0.0001,   # bottom
-                longitude + 0.0001,  # right
-                latitude + 0.0001    # top
-            ], crs=CRS.WGS84)
-
             # Create SentinelHub request for elevation data
             request_elevation = SentinelHubRequest(
                 evalscript="""
@@ -464,12 +441,19 @@ class OptimumRouteFinder(APIView):
                 input_data=[
                     SentinelHubRequest.input_data(
                         data_collection=DataCollection.DEM,
+                        time_interval=('2019-01-01', '2019-12-31'),  # Adjust the time interval as needed
+                        mosaicking_order='leastCC'  # Adjust mosaicking order as needed
                     ),
                 ],
                 responses=[
                     SentinelHubRequest.output_response('default', MimeType.TIFF),
                 ],
-                bbox=bbox,
+                bbox=BBox(bbox=[
+                    longitude - 0.0001,  # left
+                    latitude - 0.0001,   # bottom
+                    longitude + 0.0001,  # right
+                    latitude + 0.0001    # top
+                ], crs=CRS.WGS84),
                 size=[1, 1],  # Set size to 1x1 pixel to get only one pixel value
                 config=config,
             )
@@ -482,9 +466,18 @@ class OptimumRouteFinder(APIView):
 
             return elevation_value
 
-        # Fetch elevation values for all coordinates
-        for longitude, latitude in coordinates:
+        # Fetch elevation values for all coordinates along the route
+        for latlng in route_latlngs:
+            latitude, longitude = latlng
             elevation = get_elevation(latitude, longitude)
             elevation_data.append({'latitude': latitude, 'longitude': longitude, 'elevation': elevation})
 
         return elevation_data
+
+    def calculate_elevation_difference(self, elevation_data):
+        # Calculate elevation difference along the route
+        elevation_difference = 0
+        for i in range(len(elevation_data) - 1):
+            elevation_difference += elevation_data[i + 1]['elevation'] - elevation_data[i]['elevation']
+
+        return elevation_difference
