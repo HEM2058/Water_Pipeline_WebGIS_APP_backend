@@ -18,7 +18,7 @@ class Pipeline(models.Model):
     Leakage = models.BooleanField(null=True)
 
     def __str__(self):
-        return f"Diameter: {self.Diameter_m}, Material: {self.Material}, Flow Rate: {self.Flow_Rate} m^3/s, Condition: {self.Condition}, Leakage: {self.Leakage}"
+        return f"Diameter: {self.Diameter_m},Length:{self.Length_m} Material: {self.Material}"
 
 class PipelineFile(models.Model):
     file = models.FileField(upload_to='pipeline_files/')
@@ -73,7 +73,7 @@ class StorageUnit(models.Model):
     Name = models.CharField(max_length=255, null=True)
 
     def __str__(self):
-        return f"Type: {self.Type}, Capacity: {self.Capacity}, Usage: {self.Usage}, Condition: {self.Condition}, Name: {self.Name}"
+        return f"Type: {self.Type},Name: {self.Name}"
 
 class StorageUnitFile(models.Model):
     file = models.FileField(upload_to='storage_unit_files/')
@@ -122,7 +122,7 @@ class GateValve(models.Model):
     Installation_date = models.DateField(null=True)
 
     def __str__(self):
-        return f"Material: {self.Material}, Status: {self.Status}, Installation Date: {self.Installation_date}"
+        return f"Status: {self.Status}"
 
 class GateValveFile(models.Model):
     file = models.FileField(upload_to='gatevalve_files/')
@@ -168,7 +168,7 @@ class TubeWell(models.Model):
     Condition = models.CharField(max_length=50, null=True)
 
     def __str__(self):
-        return f"Name: {self.Name}, Pump Type: {self.Pump_Type}, Depth: {self.Depth}, Flow Rate: {self.Flow_Rate}, Condition: {self.Condition}"
+        return f"Name: {self.Name}"
 
 class TubeWellFile(models.Model):
     file = models.FileField(upload_to='tubewell_files/')

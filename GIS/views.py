@@ -208,6 +208,7 @@ class ElevationAPIView(APIView):
                 longitude + 0.0001,  # right
                 latitude + 0.0001    # top
             ], crs=CRS.WGS84)
+            print(bbox)
 
             # Create SentinelHub request for elevation data
             request_elevation = SentinelHubRequest(
@@ -244,6 +245,7 @@ class ElevationAPIView(APIView):
 
             # Get elevation data from the request
             elevation_response = request_elevation.get_data()
+            print(elevation_response)
 
             # Extract elevation value
             elevation_value = elevation_response[0][0][0]
@@ -360,9 +362,11 @@ class OptimumRouteFinder(APIView):
                     if routes:
                         first_route_info = routes[0]
                         route_latlngs = first_route_info['latlngs']
+                       
 
                         # Fetch elevation data for the coordinates along the route
                         elevation_data = self.request_elevation_data(route_latlngs)
+                        print(elevation_data)
 
                         # Calculate elevation difference for the route
                         elevation_difference = self.calculate_elevation_difference(elevation_data)
@@ -418,7 +422,16 @@ class OptimumRouteFinder(APIView):
 
         # Function to get elevation value for a single location
         def get_elevation(latitude, longitude):
-            # Create SentinelHub request for elevation data
+            bbox = BBox(bbox=[
+                longitude - 0.0001,  # left
+                latitude - 0.0001,   # bottom
+                longitude + 0.0001,  # right
+                latitude + 0.0001    # top
+            ], crs=CRS.WGS84)
+            print(bbox)
+
+    
+            ## Create SentinelHub request for elevation data
             request_elevation = SentinelHubRequest(
                 evalscript="""
                     //VERSION=3
@@ -441,34 +454,29 @@ class OptimumRouteFinder(APIView):
                 input_data=[
                     SentinelHubRequest.input_data(
                         data_collection=DataCollection.DEM,
-                        time_interval=('2019-01-01', '2019-12-31'),  # Adjust the time interval as needed
-                        mosaicking_order='leastCC'  # Adjust mosaicking order as needed
                     ),
                 ],
                 responses=[
                     SentinelHubRequest.output_response('default', MimeType.TIFF),
                 ],
-                bbox=BBox(bbox=[
-                    longitude - 0.0001,  # left
-                    latitude - 0.0001,   # bottom
-                    longitude + 0.0001,  # right
-                    latitude + 0.0001    # top
-                ], crs=CRS.WGS84),
+                bbox=bbox,
                 size=[1, 1],  # Set size to 1x1 pixel to get only one pixel value
                 config=config,
             )
 
+
             # Get elevation data from the request
             elevation_response = request_elevation.get_data()
+            print(elevation_response)
 
             # Extract elevation value
             elevation_value = elevation_response[0][0][0]
-
+          
             return elevation_value
 
         # Fetch elevation values for all coordinates along the route
         for latlng in route_latlngs:
-            latitude, longitude = latlng
+            longitude, latitude = latlng
             elevation = get_elevation(latitude, longitude)
             elevation_data.append({'latitude': latitude, 'longitude': longitude, 'elevation': elevation})
 
